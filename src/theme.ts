@@ -10,6 +10,10 @@ export const colors = {
   disabled: '#D1D5DB',
   tile: '#F3F4F6',
 
+  // Status colours. Reserved for device state and always paired with a text
+  // label, never carrying meaning on their own.
+  success: '#15803D',
+
   // Bar fills. One hue at two emphasis levels — colour encodes selection
   // state, not which setting it is (the icons carry identity). Both steps are
   // validated for chroma, colour-blind separation, and 3:1 contrast against

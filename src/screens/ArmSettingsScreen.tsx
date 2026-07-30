@@ -49,9 +49,11 @@ const BAR_WIDTH = 34;
 const BAR_MIN_HEIGHT = 3;
 
 export default function ArmSettingsScreen() {
-  // `saved` is what the arm holds; `draft` is what the user has dialled in but
-  // not yet committed. Confirm writes draft over saved — the staged-commit
-  // pattern, so a dropped connection can never half-apply a change.
+  // `draft` is what the arm is currently running; `saved` is what's persisted
+  // to its flash. Once BLE lands, each button press writes draft to the arm's
+  // working memory so it responds immediately, and Save is what commits to
+  // flash — gated because flash has finite erase cycles, not because applying
+  // a value needs confirming.
   const [saved, setSaved] = useState(DEVICE_VALUES);
   const [draft, setDraft] = useState(DEVICE_VALUES);
   const [selectedIndex, setSelectedIndex] = useState(1);
@@ -172,8 +174,8 @@ export default function ArmSettingsScreen() {
 
         <Pressable
           style={({ pressed }) => [
-            styles.confirm,
-            pendingCount === 0 && styles.confirmDisabled,
+            styles.save,
+            pendingCount === 0 && styles.saveDisabled,
             pressed && styles.pressed,
           ]}
           onPress={() => setSaved(draft)}
@@ -181,12 +183,12 @@ export default function ArmSettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel={
             pendingCount === 0
-              ? 'Confirm, no changes to send'
-              : `Confirm ${pendingCount} changed setting${pendingCount === 1 ? '' : 's'}`
+              ? 'Save, no unsaved changes'
+              : `Save ${pendingCount} changed setting${pendingCount === 1 ? '' : 's'}`
           }
         >
-          <Text style={[styles.confirmLabel, pendingCount === 0 && styles.confirmLabelDisabled]}>
-            Confirm
+          <Text style={[styles.saveLabel, pendingCount === 0 && styles.saveLabelDisabled]}>
+            Save
           </Text>
         </Pressable>
       </View>
@@ -251,10 +253,9 @@ const styles = StyleSheet.create({
   },
 
   settingName: {
-    fontSize: 17,
+    fontSize: 24,
     fontWeight: '600',
     color: colors.text,
-    letterSpacing: 0.2,
   },
 
   valueRow: {
@@ -302,23 +303,23 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
 
-  confirm: {
+  save: {
     paddingVertical: 14,
     paddingHorizontal: 40,
     borderRadius: 24,
     backgroundColor: colors.accent,
   },
-  confirmDisabled: {
+  saveDisabled: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: colors.border,
   },
-  confirmLabel: {
+  saveLabel: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  confirmLabelDisabled: {
+  saveLabelDisabled: {
     color: colors.muted,
   },
 
