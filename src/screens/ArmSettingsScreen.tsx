@@ -52,8 +52,7 @@ export default function ArmSettingsScreen() {
   // `draft` is what the arm is currently running; `saved` is what's persisted
   // to its flash. Once BLE lands, each button press writes draft to the arm's
   // working memory so it responds immediately, and Save is what commits to
-  // flash — gated because flash has finite erase cycles, not because applying
-  // a value needs confirming.
+  // flash
   const [saved, setSaved] = useState(DEVICE_VALUES);
   const [draft, setDraft] = useState(DEVICE_VALUES);
   const [selectedIndex, setSelectedIndex] = useState(1);
