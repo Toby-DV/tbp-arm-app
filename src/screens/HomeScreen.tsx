@@ -1,36 +1,22 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Screen from '../components/Screen';
 import { colors, spacing } from '../theme';
 
-type Status = 'disconnected' | 'searching' | 'connected';
-
-// Stand-in for a real scan result. Replaced by the transport layer later.
-const MOCK_DEVICE = {
-  name: 'Prosthetic Arm',
-  detail: 'Battery 82% · Firmware 0.1.0',
-};
-
-const SEARCH_MS = 1800;
+import { DeviceSummary, transport } from '../transport';
+import { useTelemetry, useConnectionStatus, useConnectedDevice } from '../transport/hooks';
 
 export default function HomeScreen() {
-  const [status, setStatus] = useState<Status>('disconnected');
-
-  // Mock scan: waits, then succeeds. Swapped for transport.scan() once BLE
-  // exists, at which point this also needs a timeout path for the arm being
-  // asleep and not advertising.
-  useEffect(() => {
-    if (status !== 'searching') return;
-    const timer = setTimeout(() => setStatus('connected'), SEARCH_MS);
-    return () => clearTimeout(timer);
-  }, [status]);
+  const status = useConnectionStatus();
+  const device = useConnectedDevice();
+  const [deviceList, setDeviceList] = useState<DeviceSummary[]>();
 
   return (
     <Screen title="Home" subtitle="Overview of your device">
       <View style={styles.body}>
         <View style={styles.statusRow}>
-          {status === 'searching' ? (
+          {status === 'scanning' ? (
             <ActivityIndicator size="small" color={colors.muted} />
           ) : (
             <View
@@ -43,41 +29,44 @@ export default function HomeScreen() {
           <Text style={styles.statusText}>
             {status === 'connected'
               ? 'Connected'
-              : status === 'searching'
+              : status === 'scanning'
                 ? 'Searching…'
                 : 'Not connected'}
           </Text>
         </View>
-
-        {status === 'connected' ? (
-          <View style={styles.device}>
-            <Text style={styles.deviceName}>{MOCK_DEVICE.name}</Text>
-            <Text style={styles.deviceDetail}>{MOCK_DEVICE.detail}</Text>
-
-            <Pressable
-              style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-              onPress={() => setStatus('disconnected')}
-              accessibilityRole="button"
-              accessibilityLabel={`Disconnect from ${MOCK_DEVICE.name}`}
-            >
-              <Text style={styles.secondaryLabel}>Disconnect</Text>
-            </Pressable>
-          </View>
-        ) : (
+          {status === 'connected' ? (
+            <Text>Connected to {device?.name}</Text>
+          ) : (
           <Pressable
             style={({ pressed }) => [
               styles.primary,
-              status === 'searching' && styles.primaryDisabled,
+              status === 'scanning' && styles.primaryDisabled,
               pressed && styles.pressed,
             ]}
-            onPress={() => setStatus('searching')}
-            disabled={status === 'searching'}
-            accessibilityRole="button"
-            accessibilityLabel="Add a device"
+            onPress={async () => setDeviceList(await transport.scan())}
+            disabled={status === 'scanning'}
           >
             <Text style={styles.primaryLabel}>Add a device</Text>
-          </Pressable>
-        )}
+          </Pressable>)}
+
+
+        {status !== 'connected' &&     
+        <ScrollView
+          style={{ alignSelf: 'stretch' }}
+          contentContainerStyle={{ gap: spacing.sm }}
+        >
+          {deviceList?.map((d) => (
+            <Pressable
+              key={d.id}
+              style={({ pressed }) => [styles.deviceCard, pressed && styles.pressed]}
+              onPress={() => transport.connect(d.id)}
+            >
+              <Text>{d.name}</Text>
+              <Text>{d.id}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>}
+
       </View>
     </Screen>
   );
@@ -123,6 +112,13 @@ const styles = StyleSheet.create({
   deviceDetail: {
     fontSize: 14,
     color: colors.muted,
+  },
+
+  deviceCard: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    backgroundColor: colors.tile,
   },
 
   primary: {

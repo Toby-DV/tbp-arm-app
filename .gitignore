@@ -33,6 +33,10 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Claude Code — personal overrides only. .claude/settings.json is shared config
+# and stays tracked.
+.claude/settings.local.json
+
 # typescript
 *.tsbuildinfo
 
