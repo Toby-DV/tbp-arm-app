@@ -48,7 +48,7 @@ const DEVICE_VALUES: Record<string, number> = {
 };
 
 const STATUS_LABEL: Record<ConnectionStatus, string> = {
-  disconnected: 'Connect',
+  disconnected: 'Disconnected',
   scanning: 'Scanning…',
   connecting: 'Connecting…',
   connected: 'Connected',
@@ -164,13 +164,8 @@ export default function ArmSettingsScreen() {
             status === 'connected' && styles.statusPillConnected,
             pressed && styles.pressed,
           ]}
-          onPress={toggleConnection}
+          // onPress={toggleConnection}
           disabled={busy}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: busy }}
-          accessibilityLabel={
-            status === 'connected' ? 'Connected, tap to disconnect' : STATUS_LABEL[status]
-          }
         >
           <MaterialCommunityIcons
             name={status === 'connected' ? 'bluetooth-connect' : 'bluetooth'}
