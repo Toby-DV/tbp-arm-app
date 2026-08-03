@@ -104,7 +104,7 @@ export class MockTransport implements DeviceTransport {
     return this.status;
   }
 
-  onStatusChange(listener: (status: ConnectionStatus) => void): Unsubscribe {
+  subscribeStatusChange(listener: (status: ConnectionStatus) => void): Unsubscribe {
     this.statusListeners.add(listener);
     return () => this.statusListeners.delete(listener);
   }

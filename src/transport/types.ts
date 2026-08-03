@@ -40,7 +40,7 @@ export interface DeviceTransport {
   disconnect(): Promise<void>;
 
   getStatus(): ConnectionStatus;
-  onStatusChange(listener: (status: ConnectionStatus) => void): Unsubscribe;
+  subscribeStatusChange(listener: (status: ConnectionStatus) => void): Unsubscribe;
 
   // --- settings ---
 

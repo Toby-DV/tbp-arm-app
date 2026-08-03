@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import type { ComponentProps } from 'react';
 import {
   Pressable,
@@ -75,6 +75,7 @@ export default function ArmSettingsScreen() {
   const onChartLayout = (e: LayoutChangeEvent) => {
     setBarAreaHeight(Math.max(0, e.nativeEvent.layout.height - TILE));
   };
+  
 
   const barHeight = (s: Setting) => {
     if (!barAreaHeight) return 0;
