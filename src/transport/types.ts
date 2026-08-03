@@ -40,6 +40,11 @@ export interface DeviceTransport {
   disconnect(): Promise<void>;
 
   getStatus(): ConnectionStatus;
+
+  /** The connected device, or null. Connection is app-wide, so screens read it
+   * from here rather than holding their own copy. */
+  getConnectedDevice(): DeviceInfo | null;
+
   subscribeStatusChange(listener: (status: ConnectionStatus) => void): Unsubscribe;
 
   // --- settings ---

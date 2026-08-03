@@ -5,22 +5,12 @@ import Screen from '../components/Screen';
 import { colors, spacing } from '../theme';
 
 import { DeviceSummary, transport } from '../transport';
-import { useTelemetry, useConnectionStatus } from '../transport/hooks';
-
-type Status = 'disconnected' | 'searching' | 'connected';
-
-// Stand-in for a real scan result. Replaced by the transport layer later.
-const MOCK_DEVICE = {
-  name: 'Prosthetic Arm',
-  detail: 'Battery 82% · Firmware 0.1.0',
-};
-
-const SEARCH_MS = 1800;
+import { useTelemetry, useConnectionStatus, useConnectedDevice } from '../transport/hooks';
 
 export default function HomeScreen() {
-  // const [status, setStatus] = useState<Status>('disconnected');
   const status = useConnectionStatus();
-  const [devices, setDevices] = useState<DeviceSummary[]>([])
+  const device = useConnectedDevice();
+  const [deviceList, setDeviceList] = useState<DeviceSummary[]>();
 
   return (
     <Screen title="Home" subtitle="Overview of your device">
@@ -44,24 +34,28 @@ export default function HomeScreen() {
                 : 'Not connected'}
           </Text>
         </View>
-
+          {status === 'connected' ? (
+            <Text>Connected to {device?.name}</Text>
+          ) : (
           <Pressable
             style={({ pressed }) => [
               styles.primary,
               status === 'scanning' && styles.primaryDisabled,
               pressed && styles.pressed,
             ]}
-            onPress={async () => setDevices(await transport.scan())}
+            onPress={async () => setDeviceList(await transport.scan())}
             disabled={status === 'scanning'}
           >
             <Text style={styles.primaryLabel}>Add a device</Text>
-          </Pressable>
+          </Pressable>)}
 
+
+        {status !== 'connected' &&     
         <ScrollView
           style={{ alignSelf: 'stretch' }}
           contentContainerStyle={{ gap: spacing.sm }}
         >
-          {devices.map((d) => (
+          {deviceList?.map((d) => (
             <Pressable
               key={d.id}
               style={({ pressed }) => [styles.deviceCard, pressed && styles.pressed]}
@@ -71,7 +65,8 @@ export default function HomeScreen() {
               <Text>{d.id}</Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </ScrollView>}
+
       </View>
     </Screen>
   );

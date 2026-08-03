@@ -8,13 +8,20 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { transport } from './index';
-import type { ConnectionStatus } from './types';
+import type { ConnectionStatus, DeviceInfo } from './types';
 
 const subscribeStatus = (cb: () => void) => transport.subscribeStatusChange(cb);
 const getStatus = () => transport.getStatus();
 
 export function useConnectionStatus(): ConnectionStatus {
   return useSyncExternalStore(subscribeStatus, getStatus, getStatus);
+}
+
+// The connected device, or null. Re-reads on every status change, so it stays
+// right no matter which screen connected or disconnected.
+export function useConnectedDevice(): DeviceInfo | null {
+  useConnectionStatus();
+  return transport.getConnectedDevice();
 }
 
 // Latest muscle signal, 0-100. Streams only while mounted and connected; pass

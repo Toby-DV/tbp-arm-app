@@ -52,6 +52,7 @@ export class MockTransport implements DeviceTransport {
 
   private status: ConnectionStatus = 'disconnected';
   private statusListeners = new Set<(status: ConnectionStatus) => void>();
+  private connected: DeviceInfo | null = null;
 
   /** What the arm is running now. */
   private live: SettingValues = { ...FLASH_VALUES };
@@ -91,17 +92,26 @@ export class MockTransport implements DeviceTransport {
 
     this.setStatus('connecting');
     await wait(this.options.latencyMs);
+
+    // Set before the status change so listeners waking on 'connected' can
+    // already read the device.
+    this.connected = { ...MOCK_DEVICE };
     this.setStatus('connected');
     return { ...MOCK_DEVICE };
   }
 
   async disconnect(): Promise<void> {
     this.stopTelemetry();
+    this.connected = null;
     this.setStatus('disconnected');
   }
 
   getStatus(): ConnectionStatus {
     return this.status;
+  }
+
+  getConnectedDevice(): DeviceInfo | null {
+    return this.connected;
   }
 
   subscribeStatusChange(listener: (status: ConnectionStatus) => void): Unsubscribe {
