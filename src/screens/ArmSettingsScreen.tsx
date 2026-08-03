@@ -12,6 +12,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing } from '../theme';
+import { transport } from '../transport';
+import { useConnectionStatus } from '../transport/hooks';
+import type { ConnectionStatus } from '../transport/types';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -44,6 +47,13 @@ const DEVICE_VALUES: Record<string, number> = {
   haptics: 10,
 };
 
+const STATUS_LABEL: Record<ConnectionStatus, string> = {
+  disconnected: 'Connect',
+  scanning: 'Scanning…',
+  connecting: 'Connecting…',
+  connected: 'Connected',
+};
+
 const TILE = 58;
 const BAR_WIDTH = 34;
 const BAR_MIN_HEIGHT = 3;
@@ -58,6 +68,9 @@ export default function ArmSettingsScreen() {
   const [selectedIndex, setSelectedIndex] = useState(1);
   const [barAreaHeight, setBarAreaHeight] = useState(0);
 
+  const status = useConnectionStatus();
+  const busy = status === 'scanning' || status === 'connecting';
+
   const selected = SETTINGS[selectedIndex];
   const value = draft[selected.id];
 
@@ -68,6 +81,16 @@ export default function ArmSettingsScreen() {
       ...prev,
       [selected.id]: Math.min(selected.max, Math.max(selected.min, prev[selected.id] + delta)),
     }));
+  };
+
+  const toggleConnection = async () => {
+    if (status === 'connected') {
+      await transport.disconnect();
+      return;
+    }
+
+    const [device] = await transport.scan();
+    if (device) await transport.connect(device.id);
   };
 
   // Measured rather than percentage-based, so bar heights resolve to exact
@@ -135,6 +158,35 @@ export default function ArmSettingsScreen() {
 
       {/* Bottom 40% — the setting being changed, its value, and the commit. */}
       <View style={styles.controlRegion}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.statusPill,
+            status === 'connected' && styles.statusPillConnected,
+            pressed && styles.pressed,
+          ]}
+          onPress={toggleConnection}
+          disabled={busy}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: busy }}
+          accessibilityLabel={
+            status === 'connected' ? 'Connected, tap to disconnect' : STATUS_LABEL[status]
+          }
+        >
+          <MaterialCommunityIcons
+            name={status === 'connected' ? 'bluetooth-connect' : 'bluetooth'}
+            size={14}
+            color={status === 'connected' ? colors.success : colors.muted}
+          />
+          <Text
+            style={[
+              styles.statusLabel,
+              status === 'connected' && styles.statusLabelConnected,
+            ]}
+          >
+            {STATUS_LABEL[status]}
+          </Text>
+        </Pressable>
+
         <Text style={styles.settingName}>{selected.name}</Text>
 
         <View style={styles.valueRow}>
@@ -250,6 +302,28 @@ const styles = StyleSheet.create({
   tileActive: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
+  },
+
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statusPillConnected: {
+    borderColor: colors.success,
+  },
+  statusLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.muted,
+  },
+  statusLabelConnected: {
+    color: colors.success,
   },
 
   settingName: {
