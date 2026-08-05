@@ -8,7 +8,8 @@ export type {
 } from './types';
 
 export { MockTransport, type MockOptions } from './MockTransport';
+export { BleTransport } from './BleTransport';
 
-// Single place the app picks an implementation. Swapped for BleTransport later.
-import { MockTransport } from './MockTransport';
-export const transport = new MockTransport();
+import { BleTransport } from './BleTransport';
+// Single place the app picks an implementation.
+export const transport = new BleTransport();
