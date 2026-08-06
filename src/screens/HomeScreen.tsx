@@ -11,6 +11,7 @@ export default function HomeScreen() {
   const status = useConnectionStatus();
   const device = useConnectedDevice();
   const [deviceList, setDeviceList] = useState<DeviceSummary[]>();
+  const [error, setError] = useState<string>();
 
   return (
     <Screen title="Home" subtitle="Overview of your device">
@@ -43,11 +44,20 @@ export default function HomeScreen() {
               status === 'scanning' && styles.primaryDisabled,
               pressed && styles.pressed,
             ]}
-            onPress={async () => setDeviceList(await transport.scan())}
+            onPress={async () => {
+              setError(undefined);
+              try {
+                setDeviceList(await transport.scan());
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to scan for devices');
+              }
+            }}
             disabled={status === 'scanning'}
           >
             <Text style={styles.primaryLabel}>Add a device</Text>
           </Pressable>)}
+
+        {error && <Text style={styles.errorText}>{error}</Text>}
 
 
         {status !== 'connected' &&     
@@ -59,7 +69,14 @@ export default function HomeScreen() {
             <Pressable
               key={d.id}
               style={({ pressed }) => [styles.deviceCard, pressed && styles.pressed]}
-              onPress={() => transport.connect(d.id)}
+              onPress={async () => {
+                setError(undefined);
+                try {
+                  await transport.connect(d.id);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Failed to connect');
+                }
+              }}
             >
               <Text>{d.name}</Text>
               <Text>{d.id}</Text>
@@ -94,6 +111,10 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 16,
     color: colors.muted,
+  },
+  errorText: {
+    fontSize: 14,
+    color: colors.danger,
   },
 
   device: {

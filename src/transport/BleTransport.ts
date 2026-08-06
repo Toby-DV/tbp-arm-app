@@ -1,3 +1,4 @@
+import { PermissionsAndroid, Platform } from 'react-native';
 import { BleManager, Device } from 'react-native-ble-plx';
 import type {
   ConnectionStatus,
@@ -24,13 +25,17 @@ export class BleTransport implements DeviceTransport {
 
   // --- discovery and connection ---
 
-  scan(timeoutMs = DEFAULT_SCAN_TIMEOUT_MS): Promise<DeviceSummary[]> {
+  async scan(timeoutMs = DEFAULT_SCAN_TIMEOUT_MS): Promise<DeviceSummary[]> {
+    await this.ensurePermissions();
+
     const found = new Map<string, DeviceSummary>();
+    this.setStatus('scanning');
 
     return new Promise((resolve, reject) => {
       this.manager.startDeviceScan([SETTINGS_SERVICE_UUID], null, (error, device) => {
         if (error) {
           this.manager.stopDeviceScan();
+          this.setStatus('disconnected');
           reject(error);
           return;
         }
@@ -41,12 +46,14 @@ export class BleTransport implements DeviceTransport {
 
       setTimeout(() => {
         this.manager.stopDeviceScan();
+        this.setStatus('disconnected');
         resolve(Array.from(found.values()));
       }, timeoutMs);
     });
   }
 
   async connect(deviceId: string): Promise<DeviceInfo> {
+    await this.ensurePermissions();
     this.setStatus('connecting');
 
     let device: Device;
@@ -115,6 +122,22 @@ export class BleTransport implements DeviceTransport {
   }
 
   // --- internals ---
+
+  // BLUETOOTH_SCAN/CONNECT (API 31+) and ACCESS_FINE_LOCATION (For Android)
+  private async ensurePermissions(): Promise<void> {
+    if (Platform.OS !== 'android') return;
+
+    const permissions =
+      Platform.Version >= 31
+        ? [PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN, PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT]
+        : [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+
+    const results = await PermissionsAndroid.requestMultiple(permissions);
+    const denied = permissions.filter((p) => results[p] !== PermissionsAndroid.RESULTS.GRANTED);
+    if (denied.length > 0) {
+      throw new Error(`Bluetooth permission denied: ${denied.join(', ')}`);
+    }
+  }
 
   private setStatus(status: ConnectionStatus) {
     if (this.status === status) return;
