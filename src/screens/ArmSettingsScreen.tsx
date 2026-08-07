@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { ComponentProps } from 'react';
 import {
   Pressable,
@@ -37,14 +37,15 @@ const SETTINGS: Setting[] = [
   { id: 'haptics', name: 'Haptics', icon: 'vibrate', unit: '%', min: 0, max: 100, step: 10 },
 ];
 
-// Values currently on the device. Replaced by a real read once BLE lands.
+// Shown before a device has ever connected; readSettings() replaces these
+// once BLE connects.
 const DEVICE_VALUES: Record<string, number> = {
-  openSpeed: 70,
-  gripForce: 55,
-  wristSpeed: 90,
-  sleepTimeout: 15,
-  sensitivity: 75,
-  haptics: 10,
+  openSpeed: 0,
+  gripForce: 0,
+  wristSpeed: 0,
+  sleepTimeout: 0,
+  sensitivity: 0,
+  haptics: 0,
 };
 
 const STATUS_LABEL: Record<ConnectionStatus, string> = {
@@ -60,13 +61,13 @@ const BAR_MIN_HEIGHT = 3;
 
 export default function ArmSettingsScreen() {
   // `draft` is what the arm is currently running; `saved` is what's persisted
-  // to its flash. Once BLE lands, each button press writes draft to the arm's
-  // working memory so it responds immediately, and Save is what commits to
-  // flash
+  // to its flash. Each button press writes draft to the arm's working memory
+  // so it responds immediately, and Save is what commits to flash.
   const [saved, setSaved] = useState(DEVICE_VALUES);
   const [draft, setDraft] = useState(DEVICE_VALUES);
   const [selectedIndex, setSelectedIndex] = useState(1);
   const [barAreaHeight, setBarAreaHeight] = useState(0);
+  const [error, setError] = useState<string>();
 
   const status = useConnectionStatus();
   const busy = status === 'scanning' || status === 'connecting';
@@ -76,21 +77,56 @@ export default function ArmSettingsScreen() {
 
   const pendingCount = SETTINGS.filter((s) => draft[s.id] !== saved[s.id]).length;
 
+  // Pulls the arm's real values in whenever a connection is established,
+  // regardless of whether it happened on this screen or HomeScreen.
+  useEffect(() => {
+    if (status !== 'connected') return;
+    transport
+      .readSettings()
+      .then((values) => {
+        setSaved(values);
+        setDraft(values);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to read settings'));
+  }, [status]);
+
   const adjust = (delta: number) => {
-    setDraft((prev) => ({
-      ...prev,
-      [selected.id]: Math.min(selected.max, Math.max(selected.min, prev[selected.id] + delta)),
-    }));
+    const next = Math.min(selected.max, Math.max(selected.min, draft[selected.id] + delta));
+    setDraft((prev) => ({ ...prev, [selected.id]: next }));
+
+    if (status === 'connected') {
+      transport
+        .writeSetting(selected.id, next)
+        .catch((err) => setError(err instanceof Error ? err.message : 'Failed to write setting')); // revert the graph?
+    }
   };
 
   const toggleConnection = async () => {
-    if (status === 'connected') {
-      await transport.disconnect();
-      return;
-    }
+    setError(undefined);
+    try {
+      if (status === 'connected') {
+        await transport.disconnect();
+        return;
+      }
 
-    const [device] = await transport.scan();
-    if (device) await transport.connect(device.id);
+      const [device] = await transport.scan();
+      if (device) await transport.connect(device.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to connect');
+    }
+  };
+
+  const handleSave = async () => {
+    setError(undefined);
+    if (status === 'connected') {
+      try {
+        await transport.saveSettings();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save settings');
+        return;
+      }
+    }
+    setSaved(draft);
   };
 
   // Measured rather than percentage-based, so bar heights resolve to exact
@@ -164,7 +200,7 @@ export default function ArmSettingsScreen() {
             status === 'connected' && styles.statusPillConnected,
             pressed && styles.pressed,
           ]}
-          // onPress={toggleConnection}
+          onPress={toggleConnection}
           disabled={busy}
         >
           <MaterialCommunityIcons
@@ -181,6 +217,8 @@ export default function ArmSettingsScreen() {
             {STATUS_LABEL[status]}
           </Text>
         </Pressable>
+
+        {error && <Text style={styles.errorText}>{error}</Text>}
 
         <Text style={styles.settingName}>{selected.name}</Text>
 
@@ -225,7 +263,7 @@ export default function ArmSettingsScreen() {
             pendingCount === 0 && styles.saveDisabled,
             pressed && styles.pressed,
           ]}
-          onPress={() => setSaved(draft)}
+          onPress={handleSave}
           disabled={pendingCount === 0}
           accessibilityRole="button"
           accessibilityLabel={
@@ -319,6 +357,10 @@ const styles = StyleSheet.create({
   },
   statusLabelConnected: {
     color: colors.success,
+  },
+  errorText: {
+    fontSize: 13,
+    color: colors.danger,
   },
 
   settingName: {

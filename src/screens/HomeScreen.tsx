@@ -36,7 +36,22 @@ export default function HomeScreen() {
           </Text>
         </View>
           {status === 'connected' ? (
-            <Text>Connected to {device?.name}</Text>
+            <>
+              <Text>Connected to {device?.name}</Text>
+              <Pressable
+                style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
+                onPress={async () => {
+                  setError(undefined);
+                  try {
+                    await transport.disconnect();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to disconnect');
+                  }
+                }}
+              >
+                <Text style={styles.secondaryLabel}>Disconnect</Text>
+              </Pressable>
+            </>
           ) : (
           <Pressable
             style={({ pressed }) => [
